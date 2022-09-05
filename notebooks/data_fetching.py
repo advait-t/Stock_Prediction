@@ -4,7 +4,18 @@ from dateutil.parser import parse
 import pandas as pd
 import numpy as np
 from datetime import datetime, timedelta, date
+import warnings
+warnings.filterwarnings("ignore")
 
+#! Function to check if there is any new company in the list or an old company has been removed from the list
+def check_for_changes_in_companies():
+    existing_company_list = pd.read_csv('/Users/advait_t/Desktop/Jio/Stock_Prediction/Stock_Prediction/data/final/training_data.csv')["Company"].unique()
+    with open("/Users/advait_t/Desktop/Jio/Stock_Prediction/Stock_Prediction/config/process/companies_config.txt", "r") as f:
+        new_companies_list=[i for line in f for i in line.split(',')]
+
+    new_company = list(set(new_companies_list) - set(existing_company_list))
+    delete_company = list(set(existing_company_list) - set(new_companies_list))
+    return(new_company, delete_company)
 
 #! Function to fetch data for new company from yahoo finance
 def YahooFinanceHistory(company, previous_days):

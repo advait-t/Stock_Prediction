@@ -4,6 +4,8 @@ import numpy as np
 from datetime import datetime, timedelta, date
 from functions import *
 import plotly.express as px
+import warnings
+warnings.filterwarnings("ignore")
 
 #! check for holiday
 def is_holiday(today):

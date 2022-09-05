@@ -11,6 +11,8 @@ from prophet.serialize import model_to_json, model_from_json
 
 from dateutil.parser import parse
 from prophet import Prophet
+import warnings
+warnings.filterwarnings("ignore")
 
 def model_building_for_new_company(company, company_prices, holidays_list, h, train_size, eliminate_weekends, save_model = False):
 

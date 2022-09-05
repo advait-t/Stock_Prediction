@@ -4,6 +4,8 @@ import numpy as np
 from datetime import datetime, timedelta, date
 from functions_for_streamlit import *
 import plotly.express as px
+import warnings
+warnings.filterwarnings("ignore")
 
 st.set_page_config(layout="wide")
 
