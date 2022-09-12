@@ -8,9 +8,9 @@ import warnings
 warnings.filterwarnings("ignore")
 
 #! Function to check if there is any new company in the list or an old company has been removed from the list
-def check_for_changes_in_companies():
-    existing_company_list = pd.read_csv('/Users/advait_t/Desktop/Jio/Stock_Prediction/Stock_Prediction/data/final/training_data.csv')["Company"].unique()
-    with open("/Users/advait_t/Desktop/Jio/Stock_Prediction/Stock_Prediction/config/process/companies_config.txt", "r") as f:
+def check_for_changes_in_companies(training_data_path, companies_list_path):
+    existing_company_list = pd.read_csv(training_data_path)["Company"].unique()
+    with open(companies_list_path, "r") as f:
         new_companies_list=[i for line in f for i in line.split(',')]
 
     new_company = list(set(new_companies_list) - set(existing_company_list))
@@ -18,7 +18,7 @@ def check_for_changes_in_companies():
     return(new_company, delete_company)
 
 #! Function to fetch data for new company from yahoo finance
-def YahooFinanceHistory(company, previous_days):
+def YahooFinanceHistory(company, previous_days, training_data_path):
     '''
     
     This function takes the company name and the number of previous days as input and returns the dataframe of the company history.
@@ -49,7 +49,7 @@ def YahooFinanceHistory(company, previous_days):
     company_prices = pd.read_csv(query_string)  
 
     company_prices['Company'] = company
-    training_data = pd.read_csv('/Users/advait_t/Desktop/Jio/Stock_Prediction/Stock_Prediction/data/final/training_data.csv')
+    training_data = pd.read_csv(training_data_path)
 
     training_data = training_data.append(company_prices)
 
@@ -67,7 +67,7 @@ def YahooFinanceHistory(company, previous_days):
     data.drop_duplicates(subset = 'Date', inplace = True, keep = 'last')
     data.reset_index(inplace = True, drop = True)
     training_data = data1.append(data)
-    training_data.to_csv(f'/Users/advait_t/Desktop/Jio/Stock_Prediction/Stock_Prediction/data/final/training_data.csv', index = False)
+    training_data.to_csv(training_data_path, index = False)
 
     return company_prices
 
@@ -101,15 +101,15 @@ def read_data(company, previous_days, holidays_list_path = 0):
 
     return company_prices, holidays_list
 
-def fetch_data_new_company(new_company):
+def fetch_data_new_company(new_company, holidays_list_path):
     new_company = ','.join(new_company)
-    new_company_prices = read_data(new_company, 365*5, '/Users/advait_t/Desktop/Jio/Stock_Prediction/Stock_Prediction/data/final/2017-2022_Holidays_NSE_BSE_EQ_EQD.csv') # read data for 5 years
+    new_company_prices = read_data(new_company, 365*5, holidays_list_path) # read data for 5 years
     return new_company_prices
 
-def data_delete_old_company(old_company):
+def data_delete_old_company(old_company, training_data_path, error_df_path, model_path):
     old_company = ','.join(old_company)
-    training_data = pd.read_csv('/Users/advait_t/Desktop/Jio/Stock_Prediction/Stock_Prediction/data/final/training_data.csv')
+    training_data = pd.read_csv(training_data_path)
     training_data = training_data[training_data['Company'] != old_company]
-    training_data.to_csv('/Users/advait_t/Desktop/Jio/Stock_Prediction/Stock_Prediction/data/final/training_data.csv', index=False)
-    os.remove(f'/Users/advait_t/Desktop/Jio/Stock_Prediction/Stock_Prediction/data/final/error_df1{old_company}.csv')
-    os.remove(f'/Users/advait_t/Desktop/Jio/Stock_Prediction/Stock_Prediction/models/{old_company}.json')
+    training_data.to_csv(training_data_path, index=False)
+    os.remove(error_df_path + old_company + '.csv')
+    os.remove(model_path + old_company + '.json')

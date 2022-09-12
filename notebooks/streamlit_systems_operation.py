@@ -7,6 +7,14 @@ import plotly.express as px
 import warnings
 warnings.filterwarnings("ignore")
 
+
+holiday_list_path = '/Users/advait_t/Desktop/Jio/Stock_Prediction/Stock_Prediction/data/final/2017-2022_Holidays_NSE_BSE_EQ_EQD.csv'
+training_data_path = '/Users/advait_t/Desktop/Jio/Stock_Prediction/Stock_Prediction/data/final/training_data.csv'
+error_df_path = '/Users/advait_t/Desktop/Jio/Stock_Prediction/Stock_Prediction/data/final/error_df1'
+model_path = f'/Users/advait_t/Desktop/Jio/Stock_Prediction/Stock_Prediction/models/'
+companies_list_path = "/Users/advait_t/Desktop/Jio/Stock_Prediction/Stock_Prediction/config/process/companies_config.txt"
+
+
 st.set_page_config(layout="wide")
 
 st.sidebar.title('Daily Stock Price Prediction')
@@ -15,9 +23,9 @@ today = date.today()
 yesterday = today - timedelta(days=1)
 
 #! select box for choosing the company
-company = st.sidebar.selectbox('Select the company', pd.read_csv('/Users/advait_t/Desktop/Jio/Stock_Prediction/Stock_Prediction/data/final/training_data.csv')["Company"].unique())
+company = st.sidebar.selectbox('Select the company', pd.read_csv(training_data_path)["Company"].unique())
 
-error_df = pd.read_csv(f'/Users/advait_t/Desktop/Jio/Stock_Prediction/Stock_Prediction/data/final/error_df1{company}.csv')
+error_df = pd.read_csv(error_df_path + company + '.csv')
 
 st.title(company.replace('.NS', ''))
 
@@ -33,7 +41,7 @@ col1, col2, col3 = st.columns((1,1,1))
 #! for col1 or yesterday's prediction
 yesterday = datetime.now().date() - timedelta(1)
 
-if yesterday.weekday() == 5 or yesterday.weekday() == 6 or is_holiday(yesterday) == True:
+if yesterday.weekday() == 5 or yesterday.weekday() == 6 or is_holiday(yesterday, holiday_list_path) == True:
     yesterday_date = date.today() - timedelta(days = 1)
     yesterday_date = str(yesterday_date.strftime('%d-%B-%Y'))
     col1.header('%s'%yesterday_date)
@@ -51,7 +59,7 @@ else:
 #! for col2 or today's prediction
 todays_date = str(datetime.now().date())
 
-if datetime.now().weekday() == 5 or datetime.now().weekday() == 6 or is_holiday(datetime.now().date()) == True:
+if datetime.now().weekday() == 5 or datetime.now().weekday() == 6 or is_holiday(datetime.now().date(), holiday_list_path) == True:
     col2.header('Today')
     col2.markdown('**Market Holiday**')
 
@@ -65,7 +73,7 @@ else:
 
 
 #! for col3 or tomorrow's prediction
-if datetime.today().weekday() not in [5, 6] or is_holiday(today) == False:
+if datetime.today().weekday() not in [5, 6] or is_holiday(today, holiday_list_path) == False:
     tomorrows_date = str(datetime.now().date() + timedelta(1))
 
     tomorrows_predicted_close = (error_df[error_df['Date'] == tomorrows_date]['Predicted_Close'].values[0]).round(2)
@@ -98,7 +106,7 @@ else:
 #! printing the next prediction day and time
 if datetime.now().weekday() == 5:
     one_day_later_date = datetime.now() + timedelta(days=2)
-elif datetime.now().weekday() == 6 or is_holiday(today) == True:
+elif datetime.now().weekday() == 6 or is_holiday(today, holiday_list_path) == True:
     one_day_later_date = datetime.now() + timedelta(days=1)
 else:
     if datetime.now().hour < 15 :

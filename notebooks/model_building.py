@@ -14,7 +14,10 @@ from prophet import Prophet
 import warnings
 warnings.filterwarnings("ignore")
 
-def model_building_for_new_company(company, company_prices, holidays_list, h, train_size, eliminate_weekends, save_model = False):
+
+#! Store the model performance metrics in a file to compare the performance of different models
+
+def model_building_for_new_company(company, company_prices, holidays_list, h, train_size, eliminate_weekends, model_path, error_df_path, save_model = False):
 
     if holidays_list is not None:
 
@@ -76,8 +79,14 @@ def model_building_for_new_company(company, company_prices, holidays_list, h, tr
         pass
 
     if save_model == True:
-        with open(f'/Users/advait_t/Desktop/Jio/Stock_Prediction/Stock_Prediction/models/{company}.json', 'w') as fout:
+        #! saving the model
+        with open(model_path + company + '.json', 'w') as fout:
             json.dump(model_to_json(model), fout)  # Save model
 
+        #! Creating a dataframe for the new company which will log all the values for prediction and track errors
+        error_df = pd.DataFrame(columns=['Date', 'Actual_Close', 'Predicted_Close', 'Predicted_Close_Minimum', 'Predicted_Close_Maximum', 'Percent_Change_from_Close', 'Actual_Up_Down', 'Predicted_Up_Down', 'Company'])
+        error_df = error_df.append({'Date': '07-04-2022'}, ignore_index=True)
+        error_df.to_csv(error_df_path + company + '.csv', index=False)
+            
     prediction = model.predict(future_dates)
     return model, prediction, future_dates

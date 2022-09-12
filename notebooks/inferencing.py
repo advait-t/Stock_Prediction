@@ -2,40 +2,39 @@ import os
 import warnings
 import numpy as np
 import pandas as pd
-from datetime import datetime, timedelta, date, time
+import time
+from datetime import datetime, timedelta, date
 from dateutil.parser import parse
 import json
 warnings.filterwarnings("ignore")
 from prophet.serialize import model_to_json, model_from_json
 
 
-def inferencing():
+def inferencing(holiday_list_path, training_data_path, error_df_path, model_path):
 
     today = date.today()
 
-    company_list = pd.read_csv('/Users/advait_t/Desktop/Jio/Stock_Prediction/Stock_Prediction/data/final/training_data.csv')["Company"].unique()
+    company_list = pd.read_csv(training_data_path)["Company"].unique()
 
     for company in company_list:
-        Date = str(date.today())
-        if os.path.exists(f'/Users/advait_t/Desktop/Jio/Stock_Prediction/Stock_Prediction/data/final/error_df1{company}.csv'):
-            error_df = pd.read_csv(f'/Users/advait_t/Desktop/Jio/Stock_Prediction/Stock_Prediction/data/final/error_df1{company}.csv')
-        else:
-            error_df = pd.DataFrame(columns=['Date', 'Actual_Close', 'Predicted_Close', 'Predicted_Close_Minimum', 'Predicted_Close_Maximum', 'Percent_Change_from_Close', 'Actual_Up_Down', 'Predicted_Up_Down', 'Company'])
-            error_df = error_df.append({'Date': '07-04-2022'}, ignore_index=True)
-            error_df.to_csv(f'/Users/advait_t/Desktop/Jio/Stock_Prediction/Stock_Prediction/data/final/error_df1{company}.csv', index=False)
-            error_df = pd.read_csv(f'/Users/advait_t/Desktop/Jio/Stock_Prediction/Stock_Prediction/data/final/error_df1{company}.csv')
+        
+        error_df = pd.read_csv(error_df_path + company + '.csv')
 
-        if error_df.iloc[-1]['Date'] >= Date:
-            error_df = pred_vs_real_comparision(real_stock_price(company, next_day_prediction(f'/Users/advait_t/Desktop/Jio/Stock_Prediction/Stock_Prediction/models/{company}.json', False)), next_day_prediction(f'/Users/advait_t/Desktop/Jio/Stock_Prediction/Stock_Prediction/models/{company}.json', False), error_df, company)
+        #! Checking if there were any missed days in between
+        if error_df.iloc[-1]['Date'] >= str(today):
+            error_df = pred_vs_real_comparision(real_stock_price(company, next_day_prediction(model_path + company + '.json', False)), next_day_prediction(model_path + company + '.json', False), error_df, company)
         else:
-            error_df = filling_missing_dates(error_df, company)
-            error_df = pred_vs_real_comparision(real_stock_price(company, next_day_prediction(f'/Users/advait_t/Desktop/Jio/Stock_Prediction/Stock_Prediction/models/{company}.json', False)), next_day_prediction(f'/Users/advait_t/Desktop/Jio/Stock_Prediction/Stock_Prediction/models/{company}.json', False), error_df, company)
+            error_df = filling_missing_dates(error_df, company, holiday_list_path)
+            error_df = pred_vs_real_comparision(real_stock_price(company, next_day_prediction(model_path + company + '.json', False)), next_day_prediction(model_path + company + '.json', False), error_df, company)
 
-        if is_holiday(today) == True:
-            error_df = error_df[error_df['Date'] != Date]
+        #! Check for null values in actual close and get its date
+        error_df = update_actual_close(error_df, company)
+
+        if is_holiday(today, holiday_list_path) == True or today.weekday() == 5 or today.weekday() == 6:
+            error_df = error_df[error_df['Date'] != str(today)]
 
         #! saving the df to a csv file
-        error_df.to_csv(f'/Users/advait_t/Desktop/Jio/Stock_Prediction/Stock_Prediction/data/final/error_df1{company}.csv', index=False)
+        error_df.to_csv(error_df_path + company + '.csv', index=False)
 
 
 #! Loading Model
@@ -45,16 +44,13 @@ def load_model(model_path):
     return saved_model
 
 #! check for holiday
-def is_holiday(today):
-    # holidays_list = pd.read_csv('/Users/advait_t/Desktop/Jio/Stock_Prediction/Stock_Prediction/data/final/2017-2022_Holidays_NSE_BSE_EQ_EQD.csv')
-    holidays_list = pd.read_csv('/Users/advait_t/Desktop/Jio/Stock_Prediction/Stock_Prediction/data/final/2017-2022_Holidays_NSE_BSE_EQ_EQD.csv')
+def is_holiday(today, holiday_list_path):
+    holidays_list = pd.read_csv(holiday_list_path)
     for i in range(len(holidays_list['Day'])):
         holidays_list['Day'][i] = pd.to_datetime(parse(holidays_list['Day'][i]))
     for i in range(len(holidays_list['Day'])):
         if holidays_list['Day'][i].date() == today:
             return True
-    if today.weekday() == 5 or today.weekday() == 6:
-        return True
     return False
 
 #! get real stock price
@@ -102,6 +98,51 @@ def next_day_prediction(model_path, missing_dates, missing_dates_df = 0):
         predicted = saved_model.predict(missing_dates_df)
         return (predicted[['ds','yhat', 'yhat_upper', 'yhat_lower']])
 
+#! Fetch stock price when there is a null value in actual price column
+def fetch_stock_price(company, date):
+    now = datetime.now()
+
+    past = datetime.strptime(str(date), '%Y-%m-%d %H:%M:%S')
+    past = past.replace(hour = now.hour, minute = now.minute, second = now.second, microsecond = now.second)
+    past = int(time.mktime(past.timetuple()))
+    
+    interval = '1d'
+
+    # defining the query to get historical stock data
+    query_string = f'https://query1.finance.yahoo.com/v7/finance/download/{company}?period1={past}&period2={past}&interval={interval}&events=history&includeAdjustedClose=true'
+    
+    try:
+        company_stock_price = pd.read_csv(query_string)
+        company_stock_price = company_stock_price[['Date', 'Close']]
+        return company_stock_price['Close'][0]
+    except:
+        return None
+
+def update_actual_close(df, company):
+    #! Check for null values in actual close and get its date
+    null_values = df[df['Actual_Close'].isnull()]
+    # add %H:%M:%S to get time as well
+    null_values['Date'] = pd.to_datetime(null_values['Date'], format = '%Y-%m-%d %H:%M:%S')
+    # convert to string
+    null_values['Date'] = null_values['Date'].dt.strftime('%Y-%m-%d %H:%M:%S')
+    null_values = null_values['Date'].to_list()
+
+    for date in null_values:
+        stock_price = fetch_stock_price(company, date)
+        # remove time from date
+        date = date.split(' ')[0]
+        # append to dataframe
+        df.loc[df['Date'] == date, 'Actual_Close'] = stock_price
+        # calculate percent change from close for the date in null_values
+        df.loc[df['Date'] == date, 'Percent_Change_from_Close'] = (df.loc[df['Date'] == date, 'Predicted_Close'] - df.loc[df['Date'] == date, 'Actual_Close'])/df.loc[df['Date'] == date, 'Actual_Close']
+
+    df['Actual_Up_Down'] = np.where((df['Actual_Close'] > df['Actual_Close'].shift(-1)), 'Up', 'Down')
+    df['Predicted_Up_Down'] = np.where((df['Predicted_Close'] > df['Actual_Close'].shift(-1)), 'Up', 'Down')
+
+    return df
+
+    
+
 def real_stock_price_missing_date(company, predicted):
     now = datetime.now()
     predicted['Close'] = None
@@ -117,7 +158,7 @@ def real_stock_price_missing_date(company, predicted):
     return predicted
 
 #! Filling missing dates
-def filling_missing_dates(error_df, company):
+def filling_missing_dates(error_df, company, holiday_list_path):
     Date = date.today()
     
     date_range = pd.date_range(start = error_df.iloc[-1]['Date'], end = Date, freq ='B')
@@ -127,10 +168,10 @@ def filling_missing_dates(error_df, company):
     date_range_df['Date'] = date_range_df['Date'].dt.date
 
     for i in range(len(date_range_df['Date'])):
-        if is_holiday(date_range_df['Date'][i]) == True:
+        if is_holiday(date_range_df['Date'][i], holiday_list_path) == True:
             date_range_df = date_range_df[date_range_df['Date'] != date_range_df['Date'][i]]
             
-    missing_dates_df = next_day_prediction(f'/Users/advait_t/Desktop/Jio/Stock_Prediction/Stock_Prediction/models/{company}.json',True, date_range_df)
+    missing_dates_df = next_day_prediction(model_path + company + '.json',True, date_range_df)
     missing_dates_df = real_stock_price_missing_date(company, missing_dates_df)
 
     # convert ds from datetime to date
@@ -146,11 +187,11 @@ def filling_missing_dates(error_df, company):
     error_df = error_df.drop_duplicates(subset = 'Date', keep = 'last')
     error_df['Company'] = company
 
-    error_df['Actual_Close'] = error_df['Actual_Close'].astype(float)
-    error_df['Predicted_Close'] = error_df['Predicted_Close'].astype(float)
-    error_df['Predicted_Close_Minimum'] = error_df['Predicted_Close_Minimum'].astype(float)
-    error_df['Predicted_Close_Maximum'] = error_df['Predicted_Close_Maximum'].astype(float)
-    error_df['Percent_Change_from_Close'] = error_df['Percent_Change_from_Close'].astype(float)
+    # error_df['Actual_Close'] = error_df['Actual_Close'].astype(float)
+    # error_df['Predicted_Close'] = error_df['Predicted_Close'].astype(float)
+    # error_df['Predicted_Close_Minimum'] = error_df['Predicted_Close_Minimum'].astype(float)
+    # error_df['Predicted_Close_Maximum'] = error_df['Predicted_Close_Maximum'].astype(float)
+    # error_df['Percent_Change_from_Close'] = error_df['Percent_Change_from_Close'].astype(float)
     return error_df
 
 def pred_vs_real_comparision(real_stock_price, predicted, error_df, company):
@@ -211,5 +252,4 @@ def pred_vs_real_comparision(real_stock_price, predicted, error_df, company):
 
     else:
         pass
-
     return error_df

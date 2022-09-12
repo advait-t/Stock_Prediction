@@ -8,9 +8,8 @@ import warnings
 warnings.filterwarnings("ignore")
 
 #! check for holiday
-def is_holiday(today):
-    # holidays_list = pd.read_csv('/Users/advait_t/Desktop/Jio/Stock_Prediction/Stock_Prediction/data/final/2017-2022_Holidays_NSE_BSE_EQ_EQD.csv')
-    holidays_list = pd.read_csv('/Users/advait_t/Desktop/Jio/Stock_Prediction/Stock_Prediction/data/final/2017-2022_Holidays_NSE_BSE_EQ_EQD.csv')
+def is_holiday(today, holidays_list_path):
+    holidays_list = pd.read_csv(holidays_list_path)
     for i in range(len(holidays_list['Day'])):
         holidays_list['Day'][i] = pd.to_datetime(parse(holidays_list['Day'][i]))
     for i in range(len(holidays_list['Day'])):
