@@ -24,7 +24,7 @@ def inferencing(holiday_list_path, training_data_path, error_df_path, model_path
         if error_df.iloc[-1]['Date'] >= str(today):
             error_df = pred_vs_real_comparision(real_stock_price(company, next_day_prediction(model_path + company + '.json', False)), next_day_prediction(model_path + company + '.json', False), error_df, company)
         else:
-            error_df = filling_missing_dates(error_df, company, holiday_list_path)
+            error_df = filling_missing_dates(error_df, company, holiday_list_path, model_path)
             error_df = pred_vs_real_comparision(real_stock_price(company, next_day_prediction(model_path + company + '.json', False)), next_day_prediction(model_path + company + '.json', False), error_df, company)
 
         #! Check for null values in actual close and get its date
@@ -158,7 +158,7 @@ def real_stock_price_missing_date(company, predicted):
     return predicted
 
 #! Filling missing dates
-def filling_missing_dates(error_df, company, holiday_list_path):
+def filling_missing_dates(error_df, company, holiday_list_path, model_path):
     Date = date.today()
     
     date_range = pd.date_range(start = error_df.iloc[-1]['Date'], end = Date, freq ='B')
