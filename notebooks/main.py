@@ -10,7 +10,6 @@ import warnings
 warnings.filterwarnings("ignore")
 
 def main():
-
     holiday_list_path = '/Users/advait_t/Desktop/Jio/Stock_Prediction/Stock_Prediction/data/final/2017-2022_Holidays_NSE_BSE_EQ_EQD.csv'
     training_data_path = '/Users/advait_t/Desktop/Jio/Stock_Prediction/Stock_Prediction/data/final/training_data.csv'
     error_df_path = '/Users/advait_t/Desktop/Jio/Stock_Prediction/Stock_Prediction/data/final/error_df1'
